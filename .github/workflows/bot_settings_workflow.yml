@@ -11,7 +11,10 @@ on:
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # ৬ ঘণ্টা চলবে
+    timeout-minutes: 360
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -26,18 +29,11 @@ jobs:
         run: |
           pip install python-telegram-bot requests
 
-      - name: Restore settings.json
-        run: |
-          if [ -f settings.json ]; then
-            echo "settings.json already exists"
-          else
-            echo '{"min_reward": 1, "non_usdt_notify": false}' > settings.json
-          fi
-
       - name: Run Settings Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ariful5/Tkon-notifier
         run: |
           python bot_settings.py
-          
