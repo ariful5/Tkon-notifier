@@ -83,6 +83,9 @@ def get_campaign_list():
         }
     ]
 
+    auth = os.environ.get("TASKON_AUTH", "")
+    print(f"Auth token present: {bool(auth)} | Length: {len(auth)}")
+
     for payload in payloads:
         try:
             r = requests.post(url, headers=get_headers(), json=payload, timeout=15)
@@ -226,4 +229,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-                    
+    
