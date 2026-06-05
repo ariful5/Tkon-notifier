@@ -6,7 +6,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 SEEN_FILE = "seen_quests.json"
-MIN_REWARD = 1
+MIN_REWARD = 400
 
 def load_seen():
     if os.path.exists(SEEN_FILE):
@@ -49,24 +49,48 @@ def get_headers(referer="https://taskon.xyz/quest"):
 
 def get_campaign_list():
     url = "https://api.taskon.xyz/v1/getCampaignList"
-    payload = {
-        "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
-        "page": {"page_no": 0, "size": 50}
-    }
-    try:
-        r = requests.post(url, headers=get_headers(), json=payload, timeout=15)
-        print(f"List status: {r.status_code}")
-        if r.status_code == 200:
-            data = r.json()
-            print(f"List response preview: {str(data)[:300]}")
-            result = data.get("result", {})
-            if isinstance(result, dict):
-                return result.get("data", [])
-            elif isinstance(result, list):
-                return result
-    except Exception as e:
-        print(f"List error: {e}")
-    return []
+    all_campaigns = {}
+
+    payloads = [
+        # Featured campaigns (pinned top 3)
+        {
+            "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
+            "page": {"page_no": 0, "size": 50}
+        },
+        # All quests (Token Rewards tab)
+        {
+            "page": {"page_no": 0, "size": 40},
+            "options": {
+                "name_like": "",
+                "campaign_status": "OnGoing",
+                "user_campaign_status": "All",
+                "reward_type": ["All"]
+            }
+        }
+    ]
+
+    for payload in payloads:
+        try:
+            r = requests.post(url, headers=get_headers(), json=payload, timeout=15)
+            print(f"List status: {r.status_code}")
+            if r.status_code == 200:
+                data = r.json()
+                result = data.get("result", {})
+                campaigns = []
+                if isinstance(result, dict):
+                    campaigns = result.get("data", [])
+                elif isinstance(result, list):
+                    campaigns = result
+                for c in campaigns:
+                    cid = str(c.get("id", ""))
+                    if cid:
+                        all_campaigns[cid] = c
+                print(f"Running total: {len(all_campaigns)} unique campaigns")
+        except Exception as e:
+            print(f"List error: {e}")
+
+    print(f"List response preview: {str(list(all_campaigns.values())[:1])[:300]}")
+    return list(all_campaigns.values())
 
 def get_campaign_info(campaign_id):
     url = "https://api.taskon.xyz/v1/getCampaignInfo"
