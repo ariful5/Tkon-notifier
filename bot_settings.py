@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import base64
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -10,7 +12,7 @@ from telegram.ext import (
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
-GITHUB_REPO = os.environ.get("GITHUB_REPO")
+GITHUB_REPO = os.environ.get("GITHUB_REPO")  # format: "username/repo"
 SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
@@ -23,9 +25,30 @@ logging.basicConfig(
     level=logging.INFO
 )
 
-# ─── Settings helpers ───────────────────────────────────────────────
+# ─── GitHub Settings helpers ─────────────────────────────────────────
+
+def get_github_file():
+    url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_FILE}"
+    headers = {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        content = base64.b64decode(data["content"]).decode("utf-8")
+        return json.loads(content), data["sha"]
+    return None, None
 
 def load_settings():
+    if GITHUB_TOKEN and GITHUB_REPO:
+        settings, sha = get_github_file()
+        if settings:
+            for k, v in DEFAULT_SETTINGS.items():
+                if k not in settings:
+                    settings[k] = v
+            return settings
+
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r") as f:
             s = json.load(f)
@@ -33,11 +56,39 @@ def load_settings():
                 if k not in s:
                     s[k] = v
             return s
+
     return DEFAULT_SETTINGS.copy()
 
 def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=2)
+
+    if GITHUB_TOKEN and GITHUB_REPO:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/contents/{SETTINGS_FILE}"
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+        content = base64.b64encode(
+            json.dumps(settings, indent=2).encode("utf-8")
+        ).decode("utf-8")
+
+        _, sha = get_github_file()
+
+        payload = {
+            "message": f"Update settings: min_reward={settings['min_reward']}, non_usdt={settings['non_usdt_notify']}",
+            "content": content,
+        }
+        if sha:
+            payload["sha"] = sha
+
+        response = requests.put(url, headers=headers, json=payload)
+
+        if response.status_code in [200, 201]:
+            logging.info("✅ GitHub এ settings save হয়েছে")
+        else:
+            logging.error(f"❌ GitHub save failed: {response.status_code} - {response.text}")
 
 def is_authorized(update: Update) -> bool:
     return str(update.effective_chat.id) == str(CHAT_ID)
@@ -271,4 +322,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+        
