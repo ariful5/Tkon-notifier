@@ -67,7 +67,7 @@ def get_campaign_list():
             "options": {
                 "name_like": "",
                 "campaign_status": "OnGoing",
-                "user_campaign_status": "All",
+                "user_campaign_status": "NotCompleted",
                 "reward_type": ["All"]
             }
         }
