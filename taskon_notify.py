@@ -220,19 +220,23 @@ def main():
         if not campaign_id or campaign_id in seen:
             continue
 
+        # ── Quick USDT check ──
         quick_usdt = sum(
             float(wr.get("reward_amount", 0) or 0)
             for wr in c.get("winner_rewards", [])
             if wr.get("reward_symbol") == "USDT"
         )
-        quick_has_non_usdt = any(
-            wr.get("reward_symbol") and wr.get("reward_symbol") != "USDT"
-            for wr in c.get("winner_rewards", [])
-        )
 
-        if quick_usdt < MIN_REWARD and not (NON_USDT_NOTIFY and quick_has_non_usdt and quick_usdt == 0):
-            print(f"Skip ({quick_usdt} USDT): {c.get('name', '')[:40]}")
-            continue
+        # ── FIX: 0 USDT মানেই Non-USDT হতে পারে ──
+        # winner_rewards এ reward_symbol অনেক সময় থাকে না,
+        # তাই NON_USDT_NOTIFY চালু থাকলে 0 USDT কোয়েস্ট সবসময় detail চেক করব
+        if quick_usdt < MIN_REWARD:
+            if NON_USDT_NOTIFY and quick_usdt == 0:
+                # detail চেক করব, Non-USDT হতে পারে
+                print(f"Non-USDT সম্ভব, চেক করছি: {c.get('name', '')[:40]}")
+            else:
+                print(f"Skip ({quick_usdt} USDT): {c.get('name', '')[:40]}")
+                continue
 
         print(f"চেক করছি: {c.get('name', '')[:40]} | ~{quick_usdt} USDT")
         detail = get_campaign_info(int(campaign_id))
@@ -241,8 +245,11 @@ def main():
 
         total_usdt, per_amount, max_winners, reward_symbol, reward_type_label, has_non_usdt, non_usdt_info = parse_reward(detail)
 
+        # ── Final decision ──
         should_send = (total_usdt >= MIN_REWARD) or (NON_USDT_NOTIFY and has_non_usdt and total_usdt == 0)
+
         if not should_send:
+            print(f"Skip (detail চেকে বাদ): {detail.get('name', '')[:40]}")
             continue
 
         msg = format_message(detail, total_usdt, per_amount, max_winners,
@@ -261,4 +268,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+            
