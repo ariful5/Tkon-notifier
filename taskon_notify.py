@@ -6,7 +6,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 SEEN_FILE = "seen_quests.json"
-MIN_REWARD = 400  # Minimum reward pool in USDT
+MIN_REWARD = 400
 
 def load_seen():
     if os.path.exists(SEEN_FILE):
@@ -29,152 +29,168 @@ def send_telegram(message):
     r = requests.post(url, json=data)
     return r.status_code == 200
 
-def get_quests():
-    url = "https://taskon.xyz/api/quest/list"
+def get_campaign_list():
+    url = "https://api.taskon.xyz/v1/getCampaignList"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Content-Type": "application/json",
         "Accept": "application/json",
+        "Origin": "https://taskon.xyz",
         "Referer": "https://taskon.xyz/quest"
     }
-    params = {
-        "page": 1,
-        "pageSize": 50,
-        "status": "ongoing"
+    payload = {
+        "page": {"page_no": 0, "size": 40},
+        "options": {
+            "name_like": "",
+            "campaign_status": "OnGoing",
+            "user_campaign_status": "All",
+            "reward_type": ["All"]
+        }
     }
     try:
-        r = requests.get(url, headers=headers, params=params, timeout=15)
+        r = requests.post(url, headers=headers, json=payload, timeout=15)
         if r.status_code == 200:
-            return r.json()
+            data = r.json()
+            return data.get("result", {}).get("data", [])
     except Exception as e:
-        print(f"Error fetching quests: {e}")
-    return None
+        print(f"List error: {e}")
+    return []
 
-def get_quest_detail(quest_id):
-    url = f"https://taskon.xyz/api/quest/detail/{quest_id}"
+def get_campaign_info(campaign_id):
+    url = "https://api.taskon.xyz/v1/getCampaignInfo"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Origin": "https://taskon.xyz",
+        "Referer": f"https://taskon.xyz/quest/{campaign_id}"
     }
     try:
-        r = requests.get(url, headers=headers, timeout=15)
+        r = requests.post(url, headers=headers, json={"campaign_id": campaign_id}, timeout=15)
         if r.status_code == 200:
-            return r.json()
-    except:
-        pass
+            data = r.json()
+            return data.get("result", {})
+    except Exception as e:
+        print(f"Detail error: {e}")
     return None
 
-def parse_quest(quest):
-    try:
-        quest_id = str(quest.get("id", ""))
-        name = quest.get("title", "Unknown")
-        reward_pool = float(quest.get("rewardPool", 0) or 0)
-        reward_per_winner = float(quest.get("rewardPerWinner", 0) or 0)
-        total_winners = int(quest.get("winnerCount", 0) or 0)
-        quest_type = quest.get("rewardType", "")  # FCFS or DRAW
-        link = f"https://taskon.xyz/quest/{quest_id}"
+def parse_reward(detail):
+    """Extract total USDT reward, per winner amount, max winners, and type."""
+    total_usdt = 0
+    per_amount = 0
+    max_winners = 0
+    reward_symbol = "USDT"
+    reward_type_label = "🎲 Winner Draw"
 
-        # Get tasks/requirements
-        tasks = []
-        task_list = quest.get("taskList", []) or []
-        for task in task_list[:5]:
-            task_name = task.get("title") or task.get("name") or ""
-            if task_name:
-                tasks.append(f"• {task_name}")
+    winner_rewards = detail.get("winner_rewards", [])
+    for wr in winner_rewards:
+        # Check FCFS or Draw
+        draw_type = wr.get("automatically_winner_draw_type", "")
+        winner_draw_type = wr.get("winner_draw_type", "")
+        if "FCFS" in str(draw_type).upper() or "FCFS" in str(winner_draw_type).upper():
+            reward_type_label = "🎯 FCFS (First Come First Serve)"
 
-        # Country restrictions
-        country_restrict = quest.get("countryBlacklist", []) or []
-        restrict_note = ""
-        if country_restrict:
-            restrict_note = f"⚠️ সাপোর্টেড নয়: {', '.join(country_restrict[:5])}"
+        layers = wr.get("winner_layer_rewards", [])
+        for layer in layers:
+            max_winners += layer.get("max_winners", 0)
+            rewards = layer.get("rewards", [])
+            for reward in rewards:
+                params = reward.get("reward_params", {})
+                total = float(params.get("total_amount", 0) or 0)
+                per = float(params.get("per_amount", 0) or 0)
+                symbol = params.get("token_name", "USDT")
+                if symbol == "USDT":
+                    total_usdt += total
+                    per_amount = per
+                    reward_symbol = symbol
 
-        return {
-            "id": quest_id,
-            "name": name,
-            "reward_pool": reward_pool,
-            "reward_per_winner": reward_per_winner,
-            "total_winners": total_winners,
-            "quest_type": quest_type,
-            "link": link,
-            "tasks": tasks,
-            "restrict_note": restrict_note
-        }
-    except Exception as e:
-        print(f"Parse error: {e}")
-        return None
+    return total_usdt, per_amount, max_winners, reward_symbol, reward_type_label
 
-def format_message(q):
-    reward_type_label = "🎯 FCFS" if "FCFS" in q["quest_type"].upper() else "🎲 Winner Draw"
-    tasks_text = "\n".join(q["tasks"]) if q["tasks"] else "• বিস্তারিত লিংকে দেখুন"
-    restrict_text = f"\n{q['restrict_note']}" if q["restrict_note"] else ""
+def parse_tasks(detail):
+    tasks = []
+    for task in detail.get("tasks", [])[:5]:
+        name = task.get("custom_name") or task.get("name") or task.get("template_id") or ""
+        if name:
+            tasks.append(f"• {name}")
+    return tasks
+
+def format_message(detail, total_usdt, per_amount, max_winners, reward_symbol, reward_type_label):
+    name = detail.get("name", "Unknown")
+    campaign_id = detail.get("id", "")
+    link = f"https://taskon.xyz/quest/{campaign_id}"
+    from_supported = detail.get("from_supported_country", True)
+    tasks = parse_tasks(detail)
+
+    task_text = "\n".join(tasks) if tasks else "• বিস্তারিত লিংকে দেখুন"
+    country_text = "" if from_supported else "\n⚠️ <b>আপনার দেশে সাপোর্টেড নয়!</b>"
     now = datetime.now().strftime("%I:%M %p")
 
-    msg = f"""🚨 <b>নতুন কোয়েস্ট পাওয়া গেছে!</b>
+    return f"""🚨 <b>নতুন কোয়েস্ট পাওয়া গেছে!</b>
 
-📋 <b>নাম:</b> {q['name']}
+📋 <b>নাম:</b> {name}
 {reward_type_label}
-💰 <b>রিওয়ার্ড পুল:</b> {q['reward_pool']} USDT
-👤 <b>প্রতিজন:</b> {q['reward_per_winner']} USDT
-👥 <b>মোট স্লট:</b> {q['total_winners']} জন
+💰 <b>Total Pool:</b> {total_usdt} {reward_symbol}
+👤 <b>প্রতিজন:</b> {per_amount} {reward_symbol}
+👥 <b>মোট স্লট:</b> {max_winners} জন
 
 📌 <b>রিকোয়ারমেন্ট:</b>
-{tasks_text}{restrict_text}
+{task_text}{country_text}
 
-🔗 <b>লিংক:</b> {q['link']}
+🔗 <b>লিংক:</b> {link}
 
 ⏰ পাওয়া গেছে: {now}"""
-    return msg
 
 def main():
     print(f"[{datetime.now()}] Checking TaskOn quests...")
     seen = load_seen()
-    data = get_quests()
 
-    if not data:
-        print("Failed to fetch quests or no data returned.")
-        # Try alternative approach
-        alt_url = "https://taskon.xyz/api/campaign/list"
-        try:
-            r = requests.get(alt_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
-            print(f"Alt URL status: {r.status_code}")
-            print(f"Alt response: {r.text[:500]}")
-        except Exception as e:
-            print(f"Alt error: {e}")
-        return
+    campaigns = get_campaign_list()
+    print(f"Total campaigns found: {len(campaigns)}")
 
-    print(f"Raw response type: {type(data)}")
-    print(f"Raw response preview: {str(data)[:500]}")
-
-    quests = []
-    if isinstance(data, list):
-        quests = data
-    elif isinstance(data, dict):
-        quests = data.get("data", data.get("list", data.get("records", [])))
-
-    print(f"Total quests found: {len(quests)}")
     new_count = 0
-
-    for quest in quests:
-        parsed = parse_quest(quest)
-        if not parsed:
+    for c in campaigns:
+        campaign_id = str(c.get("id", ""))
+        if not campaign_id:
             continue
 
-        if parsed["reward_pool"] < MIN_REWARD:
+        if campaign_id in seen:
             continue
 
-        if parsed["id"] in seen:
+        # Quick filter: check winner_rewards_simple for USDT amount
+        simple = c.get("winner_rewards", [])
+        quick_usdt = 0
+        for wr in simple:
+            if wr.get("reward_symbol") == "USDT":
+                quick_usdt += float(wr.get("reward_amount", 0) or 0)
+
+        if quick_usdt < MIN_REWARD:
+            print(f"Skip (low reward {quick_usdt} USDT): {c.get('name', '')[:40]}")
             continue
 
-        print(f"New quest: {parsed['name']} | Pool: {parsed['reward_pool']} USDT")
-        msg = format_message(parsed)
+        # Get full detail
+        print(f"Checking detail for: {c.get('name', '')[:40]}")
+        detail = get_campaign_info(campaign_id)
+        if not detail:
+            continue
+
+        total_usdt, per_amount, max_winners, reward_symbol, reward_type_label = parse_reward(detail)
+
+        if total_usdt < MIN_REWARD:
+            print(f"Skip after detail check ({total_usdt} USDT): {detail.get('name', '')[:40]}")
+            continue
+
+        print(f"✅ New quest: {detail.get('name', '')[:40]} | {total_usdt} USDT")
+        msg = format_message(detail, total_usdt, per_amount, max_winners, reward_symbol, reward_type_label)
+
         if send_telegram(msg):
-            print(f"✅ Notification sent for: {parsed['name']}")
-            seen.append(parsed["id"])
+            print(f"📨 Notification sent!")
+            seen.append(campaign_id)
             new_count += 1
         else:
-            print(f"❌ Failed to send notification for: {parsed['name']}")
+            print(f"❌ Failed to send notification")
 
     save_seen(seen)
     print(f"Done. {new_count} new notifications sent.")
 
 if __name__ == "__main__":
     main()
+    
