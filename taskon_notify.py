@@ -6,7 +6,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 SEEN_FILE = "seen_quests.json"
-MIN_REWARD = 400
+MIN_REWARD = 1
 
 def load_seen():
     if os.path.exists(SEEN_FILE):
