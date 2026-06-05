@@ -50,13 +50,8 @@ def get_headers(referer="https://taskon.xyz/quest"):
 def get_campaign_list():
     url = "https://api.taskon.xyz/v1/getCampaignList"
     payload = {
-        "page": {"page_no": 0, "size": 40},
-        "options": {
-            "name_like": "",
-            "campaign_status": "OnGoing",
-            "user_campaign_status": "All",
-            "reward_type": ["All"]
-        }
+        "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
+        "page": {"page_no": 0, "size": 50}
     }
     try:
         r = requests.post(url, headers=get_headers(), json=payload, timeout=15)
