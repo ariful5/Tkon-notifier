@@ -1,0 +1,37 @@
+name: TaskOn Quest Notifier
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # প্রতি ১০ মিনিটে চলবে
+  workflow_dispatch:          # Manual run button
+
+jobs:
+  check-quests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run notifier
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: python taskon_notify.py
+
+      - name: Save seen quests
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update seen quests"
+          file_pattern: seen_quests.json
+          
