@@ -9,6 +9,8 @@ from telegram.ext import (
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_REPO = os.environ.get("GITHUB_REPO")
 SETTINGS_FILE = "settings.json"
 
 DEFAULT_SETTINGS = {
