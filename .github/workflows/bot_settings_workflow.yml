@@ -1,0 +1,43 @@
+name: TaskOn Settings Bot
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'bot_settings.py'
+      - 'settings.json'
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360  # ৬ ঘণ্টা চলবে
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install python-telegram-bot requests
+
+      - name: Restore settings.json
+        run: |
+          if [ -f settings.json ]; then
+            echo "settings.json already exists"
+          else
+            echo '{"min_reward": 1, "non_usdt_notify": false}' > settings.json
+          fi
+
+      - name: Run Settings Bot
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python bot_settings.py
+          
