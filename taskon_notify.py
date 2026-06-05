@@ -61,14 +61,24 @@ def get_campaign_list():
             "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
             "page": {"page_no": 0, "size": 50}
         },
-        # All quests (Token Rewards tab)
+        # All quests (full payload)
         {
             "page": {"page_no": 0, "size": 40},
             "options": {
                 "name_like": "",
                 "campaign_status": "OnGoing",
                 "user_campaign_status": "NotCompleted",
-                "reward_type": ["All"]
+                "reward_type": ["All"],
+                "network": [],
+                "project_category": ["All"],
+                "campaign_type": "Campaign",
+                "order_by": "Comprehensive",
+                "include_private": False,
+                "end_day": 0,
+                "contain_task_type": ["AllOffChainOpt", "AllOnChainOpt"],
+                "is_global_search": False,
+                "social_campaign": False,
+                "end_tab_sort": False
             }
         }
     ]
@@ -216,4 +226,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+                    
