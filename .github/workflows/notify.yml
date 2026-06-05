@@ -2,8 +2,8 @@ name: TaskOn Quest Notifier
 
 on:
   schedule:
-    - cron: '*/10 * * * *'  # প্রতি ১০ মিনিটে চলবে
-  workflow_dispatch:          # Manual run button
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
 
 jobs:
   check-quests:
@@ -27,6 +27,9 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          TASKON_AUTH: ${{ secrets.TASKON_AUTH }}
+          TASKON_API_KEY: ${{ secrets.TASKON_API_KEY }}
+          TASKON_SESSION_ID: ${{ secrets.TASKON_SESSION_ID }}
         run: python taskon_notify.py
 
       - name: Save seen quests
