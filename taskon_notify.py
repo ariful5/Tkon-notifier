@@ -6,7 +6,7 @@ from datetime import datetime
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
 SEEN_FILE = "seen_quests.json"
-MIN_REWARD = 400
+MIN_REWARD = 1
 
 def load_seen():
     if os.path.exists(SEEN_FILE):
@@ -51,19 +51,34 @@ def get_headers(referer="https://taskon.xyz/"):
         "Sec-Fetch-Site": "same-site",
     }
 
-def get_campaign_list():
+def fetch_all_campaigns():
+    """সব page থেকে সব campaigns আনবে"""
     url = "https://api.taskon.xyz/v1/getCampaignList"
     all_campaigns = {}
+    PAGE_SIZE = 40
 
-    payloads = [
-        # Featured campaigns (pinned top 3)
-        {
-            "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
-            "page": {"page_no": 0, "size": 50}
-        },
-        # All quests (full payload)
-        {
-            "page": {"page_no": 0, "size": 40},
+    # Step 1: Featured campaigns (এগুলো pinned, page নেই)
+    featured_payload = {
+        "options": {"feature_campaigns": True, "campaign_type": "Campaign"},
+        "page": {"page_no": 0, "size": 50}
+    }
+    try:
+        r = requests.post(url, headers=get_headers(), json=featured_payload, timeout=15)
+        if r.status_code == 200:
+            campaigns = r.json().get("result", {}).get("data", [])
+            for c in campaigns:
+                cid = str(c.get("id", ""))
+                if cid:
+                    all_campaigns[cid] = c
+            print(f"Featured campaigns: {len(campaigns)}")
+    except Exception as e:
+        print(f"Featured fetch error: {e}")
+
+    # Step 2: Regular campaigns — সব page loop করে আনবে
+    page_no = 0
+    while True:
+        payload = {
+            "page": {"page_no": page_no, "size": PAGE_SIZE},
             "options": {
                 "name_like": "",
                 "campaign_status": "OnGoing",
@@ -81,32 +96,40 @@ def get_campaign_list():
                 "end_tab_sort": False
             }
         }
-    ]
-
-    auth = os.environ.get("TASKON_AUTH", "")
-    print(f"Auth token present: {bool(auth)} | Length: {len(auth)}")
-
-    for payload in payloads:
         try:
             r = requests.post(url, headers=get_headers(), json=payload, timeout=15)
-            print(f"List status: {r.status_code}")
-            if r.status_code == 200:
-                data = r.json()
-                result = data.get("result", {})
-                campaigns = []
-                if isinstance(result, dict):
-                    campaigns = result.get("data", [])
-                elif isinstance(result, list):
-                    campaigns = result
-                for c in campaigns:
-                    cid = str(c.get("id", ""))
-                    if cid:
-                        all_campaigns[cid] = c
-                print(f"Running total: {len(all_campaigns)} unique campaigns")
-        except Exception as e:
-            print(f"List error: {e}")
+            if r.status_code != 200:
+                print(f"Page {page_no} failed: status {r.status_code}")
+                break
 
-    print(f"List response preview: {str(list(all_campaigns.values())[:1])[:300]}")
+            result = r.json().get("result", {})
+            campaigns = result.get("data", [])
+
+            if not campaigns:
+                print(f"Page {page_no}: কোনো data নেই, loop শেষ")
+                break
+
+            new_this_page = 0
+            for c in campaigns:
+                cid = str(c.get("id", ""))
+                if cid and cid not in all_campaigns:
+                    all_campaigns[cid] = c
+                    new_this_page += 1
+
+            print(f"Page {page_no}: {len(campaigns)} campaigns | নতুন: {new_this_page} | মোট: {len(all_campaigns)}")
+
+            # যদি আনা campaigns, page size এর কম হয় — শেষ page
+            if len(campaigns) < PAGE_SIZE:
+                print("শেষ page পাওয়া গেছে")
+                break
+
+            page_no += 1
+
+        except Exception as e:
+            print(f"Page {page_no} error: {e}")
+            break
+
+    print(f"\nমোট unique campaigns: {len(all_campaigns)}")
     return list(all_campaigns.values())
 
 def get_campaign_info(campaign_id):
@@ -181,11 +204,11 @@ def format_message(detail, total_usdt, per_amount, max_winners, reward_symbol, r
 ⏰ পাওয়া গেছে: {now}"""
 
 def main():
-    print(f"[{datetime.now()}] Checking TaskOn quests...")
+    print(f"[{datetime.now()}] TaskOn quests চেক করছি...")
     seen = load_seen()
 
-    campaigns = get_campaign_list()
-    print(f"Total campaigns: {len(campaigns)}")
+    campaigns = fetch_all_campaigns()
+    print(f"মোট campaigns পাওয়া গেছে: {len(campaigns)}")
 
     new_count = 0
     for c in campaigns:
@@ -204,7 +227,7 @@ def main():
             print(f"Skip ({quick_usdt} USDT): {c.get('name', '')[:40]}")
             continue
 
-        print(f"Checking: {c.get('name', '')[:40]} | ~{quick_usdt} USDT")
+        print(f"চেক করছি: {c.get('name', '')[:40]} | ~{quick_usdt} USDT")
         detail = get_campaign_info(int(campaign_id))
         if not detail:
             continue
@@ -215,18 +238,18 @@ def main():
             continue
 
         msg = format_message(detail, total_usdt, per_amount, max_winners, reward_symbol, reward_type_label)
-        print(f"✅ Sending: {detail.get('name', '')[:40]} | {total_usdt} USDT")
+        print(f"✅ পাঠাচ্ছি: {detail.get('name', '')[:40]} | {total_usdt} USDT")
 
         if send_telegram(msg):
-            print("📨 Sent!")
+            print("📨 পাঠানো হয়েছে!")
             seen.append(campaign_id)
             new_count += 1
         else:
-            print("❌ Failed")
+            print("❌ ব্যর্থ হয়েছে")
 
     save_seen(seen)
-    print(f"Done. {new_count} new notifications sent.")
+    print(f"শেষ। {new_count}টি নতুন notification পাঠানো হয়েছে।")
 
 if __name__ == "__main__":
     main()
-    
+        
