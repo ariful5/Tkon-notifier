@@ -29,19 +29,23 @@ def send_telegram(message):
     r = requests.post(url, json=data)
     return r.status_code == 200
 
-def get_headers(referer="https://taskon.xyz/quest"):
+def get_headers(referer="https://taskon.xyz/"):
+    import time
     return {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Mobile Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
         "Content-Type": "application/json",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
         "Origin": "https://taskon.xyz",
         "Referer": referer,
-        "X-App-Version": "2.9.21",
-        "Save-Data": "on",
-        "Sec-Ch-Ua": '"Chromium";v="139", "Not;A=Brand";v="99"',
-        "Sec-Ch-Ua-Mobile": "?1",
-        "Sec-Ch-Ua-Platform": '"Android"',
+        "Authorization": os.environ.get("TASKON_AUTH", ""),
+        "X-Api-Key": os.environ.get("TASKON_API_KEY", "07053609F54C953681896C28"),
+        "Fp-Id": os.environ.get("TASKON_FP_ID", "1206899621"),
+        "Timestamp": str(int(time.time() * 1000)),
+        "Session-Id": os.environ.get("TASKON_SESSION_ID", ""),
+        "Sec-Ch-Ua": '"Chromium";v="148", "Google Chrome";v="148", "Not/A)Brand";v="99"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-site",
