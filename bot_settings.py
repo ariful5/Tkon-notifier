@@ -302,6 +302,9 @@ async def post_init(application: Application):
 
 # ─── Main ────────────────────────────────────────────────────────────
 
+import asyncio
+import signal
+
 def main():
     app = (
         Application.builder()
@@ -318,7 +321,18 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
 
     print("🤖 Bot চালু হয়েছে...")
-    app.run_polling()
+
+    async def run_with_timeout():
+        async with app:
+            await app.start()
+            await app.updater.start_polling()
+            print("⏳ ৯ মিনিট পর বন্ধ হবে...")
+            await asyncio.sleep(9 * 60)  # ৯ মিনিট = ৫৪০ সেকেন্ড
+            print("⏰ টাইমআউট! Bot বন্ধ হচ্ছে...")
+            await app.updater.stop()
+            await app.stop()
+
+    asyncio.run(run_with_timeout())
 
 if __name__ == "__main__":
     main()
