@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>TaskOn Notifier — সেটিংস</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg:        #0a1f12;
+      --surface:   #122b1a;
+      --card:      #183622;
+      --border:    #1f4a2c;
+      --green:     #22c55e;
+      --green-dim: #16a34a;
+      --green-soft:#dcfce7;
+      --text:      #e8f5ee;
+      --subtext:   #86a892;
+      --red:       #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hind Siliguri', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 100px 0;
+      overflow-x: hidden;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(160deg, #0d2818 0%, #122b1a 100%);
+      padding: 28px 20px 24px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -40px; left: 50%;
+      transform: translateX(-50%);
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(34,197,94,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .header-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+      font-size: 30px;
+      box-shadow: 0 8px 24px rgba(34,197,94,0.3);
+    }
+    .header h1 {
+      font-size: 22px; font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.5px;
+    }
+    .header p {
+      font-size: 13px; color: var(--green);
+      margin-top: 4px; font-weight: 500;
+    }
+
+    /* ── Cards ── */
+    .section { padding: 16px 16px 0; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+
+    .card-header {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .card-icon {
+      width: 38px; height: 38px;
+      background: rgba(34,197,94,0.15);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    .card-title { font-size: 15px; font-weight: 700; color: var(--text); }
+    .card-sub   { font-size: 12px; color: var(--subtext); margin-top: 2px; }
+
+    /* ── Reward Control ── */
+    .reward-control {
+      display: flex; align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .ctrl-btn {
+      width: 56px; height: 56px;
+      background: var(--green-dim);
+      border: none; cursor: pointer;
+      font-size: 22px; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ctrl-btn:active { background: #15803d; transform: scale(0.93); }
+    .ctrl-btn.minus  { border-right: 1px solid var(--border); }
+    .ctrl-btn.plus   { border-left:  1px solid var(--border); }
+    .reward-display {
+      flex: 1; text-align: center;
+    }
+    .reward-value {
+      font-size: 28px; font-weight: 700; color: var(--green);
+      line-height: 1;
+    }
+    .reward-unit {
+      font-size: 11px; color: var(--subtext);
+      margin-top: 2px; font-weight: 500; letter-spacing: 1px;
+    }
+
+    /* ── Presets ── */
+    .presets {
+      display: flex; gap: 8px;
+    }
+    .preset-btn {
+      flex: 1; padding: 10px 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--subtext);
+      font-size: 13px; font-weight: 600;
+      font-family: 'Hind Siliguri', sans-serif;
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .preset-btn:active { transform: scale(0.93); }
+    .preset-btn.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(34,197,94,0.35);
+    }
+    .preset-btn.custom-btn {
+      font-size: 18px;
+    }
+
+    /* ── Custom input ── */
+    .custom-input-wrap {
+      display: none;
+      margin-top: 12px;
+    }
+    .custom-input-wrap.show { display: flex; gap: 8px; }
+    .custom-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--green);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 16px;
+      font-family: 'Hind Siliguri', sans-serif;
+      outline: none;
+    }
+    .custom-input::placeholder { color: var(--subtext); }
+    .apply-btn {
+      padding: 12px 18px;
+      background: var(--green);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px; font-weight: 700;
+      font-family: 'Hind Siliguri', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .apply-btn:active { background: var(--green-dim); }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+    }
+    .toggle-info { flex: 1; }
+    .toggle-label { font-size: 15px; font-weight: 700; color: var(--text); }
+    .toggle-status {
+      font-size: 12px; color: var(--subtext); margin-top: 3px;
+    }
+    .toggle-status.on  { color: var(--green); }
+    .toggle-status.off { color: var(--subtext); }
+
+    /* Switch */
+    .switch { position: relative; width: 52px; height: 28px; flex-shrink: 0; }
+    .switch input { display: none; }
+    .slider {
+      position: absolute; inset: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 99px;
+      cursor: pointer;
+      transition: background 0.25s, border-color 0.25s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      left: 3px; top: 3px;
+      background: var(--subtext);
+      border-radius: 50%;
+      transition: transform 0.25s, background 0.25s;
+    }
+    input:checked + .slider { background: rgba(34,197,94,0.2); border-color: var(--green); }
+    input:checked + .slider::before { transform: translateX(24px); background: var(--green); }
+
+    /* ── Bottom action buttons ── */
+    .action-row {
+      display: flex; gap: 10px;
+      padding: 0 16px 16px;
+    }
+    .action-btn {
+      flex: 1; padding: 15px 10px;
+      border-radius: 14px;
+      border: none; cursor: pointer;
+      font-size: 14px; font-weight: 700;
+      font-family: 'Hind Siliguri', sans-serif;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 4px;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn .btn-icon { font-size: 22px; }
+    .action-btn.primary {
+      background: var(--green);
+      color: #fff;
+      box-shadow: 0 6px 18px rgba(34,197,94,0.3);
+    }
+    .action-btn.primary:active { background: var(--green-dim); transform: scale(0.97); }
+    .action-btn.secondary {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--subtext);
+    }
+    .action-btn.secondary:active { background: var(--surface); transform: scale(0.97); }
+
+    /* ── Save button ── */
+    .save-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      background: linear-gradient(to top, var(--bg) 60%, transparent);
+    }
+    .save-btn {
+      width: 100%; padding: 16px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none; border-radius: 14px;
+      color: #fff; font-size: 16px; font-weight: 700;
+      font-family: 'Hind Siliguri', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(34,197,94,0.35);
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .save-btn:active { transform: scale(0.97); box-shadow: none; }
+    .save-btn.saved  { background: linear-gradient(135deg, #16a34a, #166534); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+      background: var(--green);
+      color: #fff; padding: 10px 22px;
+      border-radius: 99px; font-size: 14px; font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 999; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Status view ── */
+    .status-view { display: none; }
+    .status-view.show { display: block; }
+    .main-view { display: block; }
+    .main-view.hide { display: none; }
+
+    .stat-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 13px; color: var(--subtext); }
+    .stat-value { font-size: 15px; font-weight: 700; color: var(--green); }
+    .back-btn {
+      display: flex; align-items: center; gap: 6px;
+      background: none; border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      color: var(--subtext); font-size: 14px;
+      font-family: 'Hind Siliguri', sans-serif;
+      cursor: pointer; margin-bottom: 14px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .back-btn:active { background: var(--surface); }
+  </style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast">✅ সেটিং সেভ হয়েছে!</div>
+
+<!-- Main View -->
+<div class="main-view" id="mainView">
+
+  <div class="header">
+    <div class="header-icon">⚙️</div>
+    <h1>সেটিংস মেনু</h1>
+    <p>TaskOn Notifier Bot</p>
+  </div>
+
+  <div class="section">
+
+    <!-- Reward Card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">💵</div>
+        <div>
+          <div class="card-title">সর্বনিম্ন রিওয়ার্ড</div>
+          <div class="card-sub">এর কম হলে notification আসবে না</div>
+        </div>
+      </div>
+
+      <div class="reward-control">
+        <button class="ctrl-btn minus" id="decBtn">−</button>
+        <div class="reward-display">
+          <div class="reward-value" id="rewardDisplay">$5</div>
+          <div class="reward-unit">USDT</div>
+        </div>
+        <button class="ctrl-btn plus" id="incBtn">+</button>
+      </div>
+
+      <div class="presets">
+        <button class="preset-btn" data-val="1"  onclick="setPreset(1)">$1</button>
+        <button class="preset-btn" data-val="5"  onclick="setPreset(5)">$5</button>
+        <button class="preset-btn" data-val="10" onclick="setPreset(10)">$10</button>
+        <button class="preset-btn" data-val="50" onclick="setPreset(50)">$50</button>
+        <button class="preset-btn custom-btn" onclick="toggleCustom()">✏️</button>
+      </div>
+
+      <div class="custom-input-wrap" id="customWrap">
+        <input class="custom-input" id="customInput"
+               type="number" inputmode="numeric"
+               placeholder="যেমন: 200, 1000, 2500" />
+        <button class="apply-btn" onclick="applyCustom()">সেট</button>
+      </div>
+    </div>
+
+    <!-- Non-USDT Card -->
+    <div class="card">
+      <div class="toggle-row">
+        <div class="card-icon">🪙</div>
+        <div class="toggle-info">
+          <div class="toggle-label">Non-USDT Notify</div>
+          <div class="toggle-status off" id="toggleStatus">বন্ধ — skip করবে</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="nonUsdtToggle" onchange="handleToggle()">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Status / Help buttons -->
+  <div class="action-row">
+    <button class="action-btn primary" onclick="showStatus()">
+      <span class="btn-icon">📊</span>
+      স্ট্যাটাস দেখুন
+    </button>
+    <button class="action-btn secondary" onclick="showHelp()">
+      <span class="btn-icon" style="color:#ef4444">❓</span>
+      সাহায্য
+    </button>
+  </div>
+
+</div>
+
+<!-- Status View -->
+<div class="status-view" id="statusView">
+  <div class="header">
+    <div class="header-icon">📊</div>
+    <h1>বর্তমান সেটিংস</h1>
+    <p>TaskOn Notifier Bot</p>
+  </div>
+  <div class="section">
+    <button class="back-btn" onclick="backToMain()">← ফিরে যান</button>
+    <div class="card" id="statusCard"></div>
+  </div>
+</div>
+
+<!-- Save Bar -->
+<div class="save-bar">
+  <button class="save-btn" id="saveBtn" onclick="saveSettings()">
+    💾 সেটিং সেভ করুন
+  </button>
+</div>
+
+<script>
+  // ── Telegram Web App init ──
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor('#0a1f12');
+    tg.setBackgroundColor('#0a1f12');
+  }
+
+  // ── State ──
+  let minReward   = 5;
+  let nonUsdt     = false;
+  let customOpen  = false;
+
+  const GITHUB_RAW = 'https://raw.githubusercontent.com/ariful5/Tkon-notifier/main/settings.json';
+
+  // ── Load settings from GitHub ──
+  async function loadSettings() {
+    try {
+      const res = await fetch(GITHUB_RAW + '?t=' + Date.now());
+      if (res.ok) {
+        const data = await res.json();
+        minReward = data.min_reward  ?? 5;
+        nonUsdt   = data.non_usdt_notify ?? false;
+        renderUI();
+      }
+    } catch(e) {
+      console.log('Could not load settings:', e);
+      renderUI();
+    }
+  }
+
+  // ── Render ──
+  function renderUI() {
+    document.getElementById('rewardDisplay').textContent = '$' + formatNum(minReward);
+    document.getElementById('nonUsdtToggle').checked = nonUsdt;
+    updateToggleStatus();
+    updatePresets();
+  }
+
+  function formatNum(n) {
+    return n === Math.floor(n) ? Math.floor(n) : parseFloat(n.toFixed(2));
+  }
+
+  function updateToggleStatus() {
+    const el = document.getElementById('toggleStatus');
+    if (nonUsdt) {
+      el.textContent = 'চালু — অন্য টোকেনেও notify করবে';
+      el.className = 'toggle-status on';
+    } else {
+      el.textContent = 'বন্ধ — শুধু USDT কোয়েস্টে notify';
+      el.className = 'toggle-status off';
+    }
+  }
+
+  function updatePresets() {
+    document.querySelectorAll('.preset-btn[data-val]').forEach(btn => {
+      const v = parseFloat(btn.dataset.val);
+      btn.classList.toggle('active', v === minReward);
+    });
+  }
+
+  // ── Controls ──
+  document.getElementById('decBtn').addEventListener('click', () => {
+    minReward = Math.max(1, Math.round((minReward - 1) * 100) / 100);
+    renderUI();
+  });
+  document.getElementById('incBtn').addEventListener('click', () => {
+    minReward = Math.round((minReward + 1) * 100) / 100;
+    renderUI();
+  });
+
+  function setPreset(v) {
+    minReward = v;
+    if (customOpen) toggleCustom();
+    renderUI();
+  }
+
+  function toggleCustom() {
+    customOpen = !customOpen;
+    const wrap = document.getElementById('customWrap');
+    wrap.classList.toggle('show', customOpen);
+    if (customOpen) document.getElementById('customInput').focus();
+  }
+
+  function applyCustom() {
+    const val = parseFloat(document.getElementById('customInput').value);
+    if (!isNaN(val) && val > 0) {
+      minReward = val;
+      document.getElementById('customInput').value = '';
+      toggleCustom();
+      renderUI();
+    } else {
+      document.getElementById('customInput').style.borderColor = '#ef4444';
+      setTimeout(() => {
+        document.getElementById('customInput').style.borderColor = 'var(--green)';
+      }, 800);
+    }
+  }
+
+  document.getElementById('customInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') applyCustom();
+  });
+
+  function handleToggle() {
+    nonUsdt = document.getElementById('nonUsdtToggle').checked;
+    updateToggleStatus();
+  }
+
+  // ── Save ──
+  async function saveSettings() {
+    const btn = document.getElementById('saveBtn');
+    btn.textContent = '⏳ সেভ হচ্ছে...';
+    btn.disabled = true;
+
+    const settings = { min_reward: minReward, non_usdt_notify: nonUsdt };
+
+    // Telegram data send to bot
+    if (tg) {
+      tg.sendData(JSON.stringify(settings));
+    }
+
+    // Show toast
+    showToast('✅ সেটিং সেভ হয়েছে!');
+
+    setTimeout(() => {
+      btn.textContent = '💾 সেটিং সেভ করুন';
+      btn.disabled = false;
+      btn.classList.remove('saved');
+    }, 2500);
+  }
+
+  // ── Toast ──
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // ── Status ──
+  function showStatus() {
+    const card = document.getElementById('statusCard');
+    card.innerHTML = `
+      <div class="stat-row">
+        <span class="stat-label">💵 সর্বনিম্ন রিওয়ার্ড</span>
+        <span class="stat-value">$${formatNum(minReward)} USDT</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">🪙 Non-USDT Notify</span>
+        <span class="stat-value" style="color:${nonUsdt ? 'var(--green)' : 'var(--red)'}">
+          ${nonUsdt ? '✅ চালু' : '❌ বন্ধ'}
+        </span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">📌 ফিল্টার</span>
+        <span class="stat-value" style="color:var(--subtext);font-size:13px">
+          $${formatNum(minReward)}+ ${nonUsdt ? 'সব টোকেন' : 'শুধু USDT'}
+        </span>
+      </div>
+    `;
+    document.getElementById('mainView').classList.add('hide');
+    document.getElementById('statusView').classList.add('show');
+  }
+
+  function backToMain() {
+    document.getElementById('statusView').classList.remove('show');
+    document.getElementById('mainView').classList.remove('hide');
+  }
+
+  // ── Help ──
+  function showHelp() {
+    if (tg) {
+      tg.showAlert(
+        '➖ / ➕ — এক এক করে কমানো/বাড়ানো\n\n' +
+        '$1/$5/$10/$50 — এক চাপে সেট করুন\n\n' +
+        '✏️ কাস্টম — নিজে লিখুন (200, 1000, 2500)\n\n' +
+        'Non-USDT Toggle — ETH, BNB ইত্যাদি টোকেনের কোয়েস্টেও notify পেতে চালু করুন'
+      );
+    } else {
+      alert(
+        '➖ / ➕ — এক এক করে কমানো/বাড়ানো\n\n' +
+        '$1/$5/$10/$50 — এক চাপে সেট করুন\n\n' +
+        '✏️ কাস্টম — নিজে লিখুন\n\n' +
+        'Non-USDT Toggle — অন্য টোকেনেও notify'
+      );
+    }
+  }
+
+  // ── Init ──
+  loadSettings();
+</script>
+</body>
+  </html>
+  
