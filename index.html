@@ -428,7 +428,7 @@
   let nonUsdt     = false;
   let customOpen  = false;
 
-  const GITHUB_RAW = 'https://raw.githubusercontent.com/ariful5/Tkon-notifier/main/settings.json';
+  const GITHUB_RAW    = 'https://raw.githubusercontent.com/ariful5/Tkon-notifier/main/settings.json';
 
   // ── Load settings from GitHub ──
   async function loadSettings() {
@@ -523,7 +523,7 @@
     updateToggleStatus();
   }
 
-  // ── Save ──
+  // ── Save — বটের মাধ্যমে GitHub এ save ──
   async function saveSettings() {
     const btn = document.getElementById('saveBtn');
     btn.textContent = '⏳ সেভ হচ্ছে...';
@@ -531,19 +531,17 @@
 
     const settings = { min_reward: minReward, non_usdt_notify: nonUsdt };
 
-    // Telegram data send to bot
-    if (tg) {
+    if (tg && tg.sendData) {
       tg.sendData(JSON.stringify(settings));
+      showToast('✅ সেটিং সেভ হয়েছে!');
+    } else {
+      showToast('❌ Telegram এ খুলুন!');
     }
-
-    // Show toast
-    showToast('✅ সেটিং সেভ হয়েছে!');
 
     setTimeout(() => {
       btn.textContent = '💾 সেটিং সেভ করুন';
       btn.disabled = false;
-      btn.classList.remove('saved');
-    }, 2500);
+    }, 2000);
   }
 
   // ── Toast ──
@@ -607,5 +605,4 @@
   loadSettings();
 </script>
 </body>
-  </html>
-  
+</html>
