@@ -1,0 +1,45 @@
+name: Deploy Mini App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Inject secrets into HTML
+        run: |
+          # index_template.html থেকে index.html বানাও
+          # TELEGRAM_TOKEN এবং CHAT_ID inject করো
+          sed \
+            -e "s|__TELEGRAM_TOKEN__|${{ secrets.TELEGRAM_TO }}|g" \
+            -e "s|__CHAT_ID__|${{ secrets.CHAT_ID }}|g" \
+            index_template.html > index.html
+          echo "✅ index.html তৈরি হয়েছে"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
