@@ -93,40 +93,57 @@ def save_settings(settings):
 def is_authorized(update: Update) -> bool:
     return str(update.effective_chat.id) == str(CHAT_ID)
 
-# ─── Settings menu builder ──────────────────────────────────────────
+# ─── Settings menu builder ───────────────────────────────────────────
 
 def build_settings_menu(s):
-    non_usdt_label = "🟢 চালু আছে — বন্ধ করতে চাপুন" if s["non_usdt_notify"] else "🔴 বন্ধ আছে — চালু করতে চাপুন"
+    reward = s["min_reward"]
+    non_usdt = s["non_usdt_notify"]
+
+    # রিওয়ার্ড ডিসপ্লে
+    reward_display = f"${reward} USDT" if reward == int(reward) else f"${reward} USDT"
+
+    # Non-USDT সুইচ লেবেল
+    switch_label = "🟢 চালু আছে  ●━━━━  বন্ধ করুন" if non_usdt else "🔴 বন্ধ আছে  ━━━━●  চালু করুন"
 
     keyboard = [
-        [InlineKeyboardButton(
-            f"💵 সর্বনিম্ন রিওয়ার্ড: ${s['min_reward']} USDT",
-            callback_data="noop"
-        )],
-        [InlineKeyboardButton(
-            "✏️ পরিমাণ পরিবর্তন করুন",
-            callback_data="set_min_reward"
-        )],
+        # ── রিওয়ার্ড সেকশন হেডার ──
+        [InlineKeyboardButton("💵  সর্বনিম্ন রিওয়ার্ড", callback_data="noop")],
 
-        [InlineKeyboardButton("─────────────────────", callback_data="noop")],
+        # বর্তমান ভ্যালু + +/- কন্ট্রোল
+        [
+            InlineKeyboardButton("➖", callback_data="reward_dec"),
+            InlineKeyboardButton(f"✦  {reward_display}  ✦", callback_data="noop"),
+            InlineKeyboardButton("➕", callback_data="reward_inc"),
+        ],
 
-        [InlineKeyboardButton(
-            "🪙 Non-USDT কোয়েস্ট নোটিফিকেশন",
-            callback_data="noop"
-        )],
-        [InlineKeyboardButton(
-            non_usdt_label,
-            callback_data="toggle_non_usdt"
-        )],
+        # প্রিসেট চিপ বাটন
+        [
+            InlineKeyboardButton("$1"  if reward != 1   else "✓ $1",   callback_data="reward_set_1"),
+            InlineKeyboardButton("$5"  if reward != 5   else "✓ $5",   callback_data="reward_set_5"),
+            InlineKeyboardButton("$10" if reward != 10  else "✓ $10",  callback_data="reward_set_10"),
+            InlineKeyboardButton("$50" if reward != 50  else "✓ $50",  callback_data="reward_set_50"),
+            InlineKeyboardButton("✏️",                                   callback_data="reward_custom"),
+        ],
 
-        [InlineKeyboardButton("─────────────────────", callback_data="noop")],
+        # ── ডিভাইডার ──
+        [InlineKeyboardButton("┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄", callback_data="noop")],
 
-        [InlineKeyboardButton("📊 বর্তমান স্ট্যাটাস দেখুন", callback_data="show_status"),
-         InlineKeyboardButton("❓ সাহায্য", callback_data="show_help")],
+        # ── Non-USDT সেকশন ──
+        [InlineKeyboardButton("🪙  Non-USDT কোয়েস্ট নোটিফিকেশন", callback_data="noop")],
+        [InlineKeyboardButton(switch_label, callback_data="toggle_non_usdt")],
+
+        # ── ডিভাইডার ──
+        [InlineKeyboardButton("┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄", callback_data="noop")],
+
+        # ── নিচের বাটন ──
+        [
+            InlineKeyboardButton("📊  স্ট্যাটাস দেখুন", callback_data="show_status"),
+            InlineKeyboardButton("❓  সাহায্য",          callback_data="show_help"),
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
-# ─── /start command ─────────────────────────────────────────────────
+# ─── /start command ──────────────────────────────────────────────────
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update):
@@ -152,9 +169,10 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "⚙️ <b>সেটিংস মেনু</b>\n\n"
-        "💵 <b>সর্বনিম্ন রিওয়ার্ড:</b> এই পরিমাণের কম USDT রিওয়ার্ডের কোয়েস্ট skip হবে\n"
-        "🪙 <b>Non-USDT Notify:</b> USDT ছাড়া অন্য টোকেনের কোয়েস্টে নোটিফিকেশন পাবেন কিনা\n\n"
-        "নিচের বাটন চাপুন পরিবর্তন করতে 👇",
+        "💵 <b>সর্বনিম্ন রিওয়ার্ড:</b> ➖/➕ চাপুন অথবা প্রিসেট বেছে নিন\n"
+        "   ✏️ চাপলে যেকোনো কাস্টম পরিমাণ লিখতে পারবেন\n\n"
+        "🪙 <b>Non-USDT Notify:</b> USDT ছাড়া অন্য টোকেনের কোয়েস্টে নোটিফিকেশন\n\n"
+        "নিচের বাটন চাপুন 👇",
         parse_mode="HTML",
         reply_markup=reply_markup
     )
@@ -188,6 +206,10 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "   TaskOn এ যে কোয়েস্টের মোট USDT পুরস্কার এই পরিমাণের কম,\n"
         "   সেগুলোর notification আসবে না।\n"
         "   উদাহরণ: $5 সেট করলে $4 এর কোয়েস্ট skip হবে।\n\n"
+        "🔹 <b>➖ / ➕ বাটন:</b>\n"
+        "   এক এক করে কমানো বা বাড়ানো যাবে।\n\n"
+        "🔹 <b>✏️ কাস্টম বাটন:</b>\n"
+        "   চাপলে নিজে লিখে দিতে পারবেন (যেমন: 200, 1000, 2500)।\n\n"
         "🔹 <b>Non-USDT Notify কী?</b>\n"
         "   কিছু কোয়েস্টে USDT এর বদলে অন্য টোকেন (যেমন: ETH, BNB) দেয়।\n"
         "   চালু থাকলে সেগুলোরও notification পাবেন।\n\n"
@@ -211,15 +233,51 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "noop":
         return
 
+    # ── রিওয়ার্ড ➕/➖ ──
+    elif data == "reward_inc":
+        s["min_reward"] = round(s["min_reward"] + 1, 2)
+        save_settings(s)
+        await query.edit_message_reply_markup(build_settings_menu(s))
+
+    elif data == "reward_dec":
+        s["min_reward"] = round(max(1, s["min_reward"] - 1), 2)
+        save_settings(s)
+        await query.edit_message_reply_markup(build_settings_menu(s))
+
+    # ── প্রিসেট বাটন ──
+    elif data.startswith("reward_set_"):
+        preset = float(data.replace("reward_set_", ""))
+        s["min_reward"] = preset
+        save_settings(s)
+        await query.edit_message_reply_markup(build_settings_menu(s))
+
+    # ── কাস্টম ইনপুট ──
+    elif data == "reward_custom":
+        await query.edit_message_text(
+            f"✏️ <b>কাস্টম রিওয়ার্ড সেট করুন</b>\n\n"
+            f"📌 বর্তমান সেটিং: <b>${s['min_reward']} USDT</b>\n\n"
+            f"নতুন পরিমাণ লিখে পাঠান:\n"
+            f"(যেমন: <code>200</code> বা <code>1000</code> বা <code>2500</code>)\n\n"
+            f"⚠️ শুধু সংখ্যা লিখুন, কোনো চিহ্ন নয়",
+            parse_mode="HTML"
+        )
+        context.user_data["waiting_for"] = "min_reward"
+
+    # ── Non-USDT টগল ──
+    elif data == "toggle_non_usdt":
+        s["non_usdt_notify"] = not s["non_usdt_notify"]
+        save_settings(s)
+        await query.edit_message_reply_markup(build_settings_menu(s))
+
     elif data == "show_help":
         await query.edit_message_text(
             "❓ <b>সাহায্য</b>\n\n"
-            "🔹 <b>সর্বনিম্ন রিওয়ার্ড কী?</b>\n"
-            "   এই পরিমাণের কম USDT রিওয়ার্ডের কোয়েস্ট skip হবে।\n"
-            "   উদাহরণ: $5 সেট করলে $4 এর কোয়েস্ট আসবে না।\n\n"
-            "🔹 <b>Non-USDT Notify কী?</b>\n"
-            "   USDT ছাড়া অন্য টোকেন (ETH, BNB ইত্যাদি) এর কোয়েস্টেও\n"
-            "   notification পেতে চাইলে চালু রাখুন।\n\n"
+            "🔹 <b>➖ / ➕ বাটন:</b> এক এক করে কমানো/বাড়ানো\n"
+            "🔹 <b>✏️ কাস্টম:</b> নিজে লিখুন (200, 1000, 2500...)\n"
+            "🔹 <b>$1/$5/$10/$50:</b> এক চাপেই সেট\n\n"
+            "🔹 <b>Non-USDT Notify:</b>\n"
+            "   USDT ছাড়া অন্য টোকেন (ETH, BNB ইত্যাদি)\n"
+            "   এর কোয়েস্টেও notification পেতে চালু রাখুন।\n\n"
             "⬅️ ফিরে যেতে /settings লিখুন",
             parse_mode="HTML"
         )
@@ -236,30 +294,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
 
-    elif data == "toggle_non_usdt":
-        s["non_usdt_notify"] = not s["non_usdt_notify"]
-        save_settings(s)
-        status = "✅ চালু" if s["non_usdt_notify"] else "❌ বন্ধ"
-        desc = "এখন Non-USDT কোয়েস্টেও notification পাবেন।" if s["non_usdt_notify"] else "এখন শুধু USDT কোয়েস্টে notification পাবেন।"
-
-        await query.edit_message_text(
-            f"🪙 <b>Non-USDT Notify: {status}</b>\n\n"
-            f"✔️ {desc}\n\n"
-            f"⬅️ আবার মেনু দেখতে /settings লিখুন",
-            parse_mode="HTML"
-        )
-
-    elif data == "set_min_reward":
-        await query.edit_message_text(
-            f"💵 <b>সর্বনিম্ন রিওয়ার্ড পরিবর্তন করুন</b>\n\n"
-            f"📌 বর্তমান সেটিং: <b>${s['min_reward']} USDT</b>\n\n"
-            f"নতুন পরিমাণ লিখে পাঠান:\n"
-            f"(যেমন: <code>5</code> বা <code>50</code> বা <code>100</code>)\n\n"
-            f"⚠️ শুধু সংখ্যা লিখুন, কোনো চিহ্ন নয়",
-            parse_mode="HTML"
-        )
-        context.user_data["waiting_for"] = "min_reward"
-
 # ─── Message handler ──────────────────────────────────────────────────
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -270,23 +304,25 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = update.message.text.strip()
         try:
             value = float(text)
-            if value < 0:
+            if value <= 0:
                 raise ValueError
             s = load_settings()
             s["min_reward"] = value
             save_settings(s)
             context.user_data["waiting_for"] = None
+
+            # সেভ করে সাথে সাথে নতুন মেনু দেখাবে
             await update.message.reply_text(
                 f"✅ <b>সেটিং সেভ হয়েছে!</b>\n\n"
                 f"💵 সর্বনিম্ন রিওয়ার্ড: <b>${value} USDT</b>\n\n"
-                f"এখন থেকে ${value} বা এর বেশি USDT এর কোয়েস্টে notification পাবেন।\n\n"
-                f"⬅️ মেনুতে ফিরতে /settings লিখুন",
-                parse_mode="HTML"
+                f"এখন থেকে ${value} বা এর বেশি USDT এর কোয়েস্টে notification পাবেন।",
+                parse_mode="HTML",
+                reply_markup=build_settings_menu(s)
             )
         except ValueError:
             await update.message.reply_text(
                 "❌ <b>ভুল ইনপুট!</b> শুধু সংখ্যা লিখুন।\n"
-                "যেমন: <code>5</code> বা <code>50</code>",
+                "যেমন: <code>200</code> বা <code>1000</code>",
                 parse_mode="HTML"
             )
 
@@ -303,7 +339,6 @@ async def post_init(application: Application):
 # ─── Main ────────────────────────────────────────────────────────────
 
 import asyncio
-import signal
 
 def main():
     app = (
@@ -327,7 +362,7 @@ def main():
             await app.start()
             await app.updater.start_polling()
             print("⏳ ৯ মিনিট পর বন্ধ হবে...")
-            await asyncio.sleep(9 * 60)  # ৯ মিনিট = ৫৪০ সেকেন্ড
+            await asyncio.sleep(9 * 60)
             print("⏰ টাইমআউট! Bot বন্ধ হচ্ছে...")
             await app.updater.stop()
             await app.stop()
@@ -336,4 +371,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+    
