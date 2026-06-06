@@ -428,6 +428,10 @@
   let nonUsdt     = false;
   let customOpen  = false;
 
+  // Bot API config (injected by GitHub Actions)
+  const BOT_TOKEN = "__TELEGRAM_TOKEN__";
+  const CHAT_ID   = "__CHAT_ID__";
+
   const GITHUB_RAW    = 'https://raw.githubusercontent.com/ariful5/Tkon-notifier/main/settings.json';
 
   // ── Load settings from GitHub ──
@@ -523,19 +527,40 @@
     updateToggleStatus();
   }
 
-  // ── Save — বটের মাধ্যমে GitHub এ save ──
+  // ── Save — Telegram Bot API দিয়ে সরাসরি ──
   async function saveSettings() {
     const btn = document.getElementById('saveBtn');
     btn.textContent = '⏳ সেভ হচ্ছে...';
     btn.disabled = true;
 
     const settings = { min_reward: minReward, non_usdt_notify: nonUsdt };
+    const nonUsdtText = nonUsdt ? '✅ চালু' : '❌ বন্ধ';
+    const msgText = `⚙️ সেটিংস আপডেট\n\n💵 সর্বনিম্ন: $${minReward} USDT\n🪙 Non-USDT: ${nonUsdtText}\n\n#settings_update`;
 
-    if (tg && tg.sendData) {
-      tg.sendData(JSON.stringify(settings));
-      showToast('✅ সেটিং সেভ হয়েছে!');
-    } else {
-      showToast('❌ Telegram এ খুলুন!');
+    try {
+      // ১. Telegram Bot API দিয়ে বটকে message পাঠাও
+      const tgRes = await fetch(
+        `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: msgText,
+            parse_mode: 'HTML'
+          })
+        }
+      );
+
+      if (tgRes.ok) {
+        showToast('✅ সেটিং সেভ হয়েছে!');
+      } else {
+        const err = await tgRes.json();
+        console.error('Telegram API error:', err);
+        showToast('❌ সেভ হয়নি!');
+      }
+    } catch(e) {
+      showToast('❌ নেটওয়ার্ক সমস্যা!');
+      console.error(e);
     }
 
     setTimeout(() => {
