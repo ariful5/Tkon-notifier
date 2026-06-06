@@ -1,4 +1,4 @@
 {
   "min_reward": 4,
-  "non_usdt_notify": false
+  "non_usdt_notify": true
 }
