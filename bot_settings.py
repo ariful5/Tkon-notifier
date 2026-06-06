@@ -5,7 +5,7 @@ import base64
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, WebAppInfo
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler,
+    Application, CommandHandler,
     MessageHandler, filters, ContextTypes
 )
 
@@ -81,8 +81,6 @@ def save_settings(settings):
 def is_authorized(update: Update) -> bool:
     return str(update.effective_chat.id) == str(CHAT_ID)
 
-# ─── একটাই বাটন ──────────────────────────────────────────────────────
-
 def mini_app_button():
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(
@@ -91,39 +89,19 @@ def mini_app_button():
         )
     ]])
 
-# ─── /start ──────────────────────────────────────────────────────────
+# ─── /start — ছোট্ট বার্তা ───────────────────────────────────────────
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update): return
     s = load_settings()
     non_usdt = "✅ চালু" if s["non_usdt_notify"] else "❌ বন্ধ"
-
     await update.message.reply_text(
         "👋 <b>TaskOn Quest Notifier Bot</b>\n\n"
-        "এই বট TaskOn প্ল্যাটফর্মের নতুন কোয়েস্ট আসলে\n"
-        "আপনাকে <b>Telegram এ সাথে সাথে notify</b> করে।\n\n"
-
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "🎛️ <b>Mini App এ যা করতে পারবেন:</b>\n\n"
-        "💵 <b>সর্বনিম্ন রিওয়ার্ড সেট করুন</b>\n"
-        "   └ যেমন $5 সেট করলে, $5 এর কম\n"
-        "      রিওয়ার্ডের কোয়েস্টে notify আসবে না\n\n"
-        "➕ <b>+/- বাটন দিয়ে বাড়ান/কমান</b>\n"
-        "   └ এক এক করে adjust করুন\n\n"
-        "⚡ <b>Quick preset বাটন</b>\n"
-        "   └ $1 / $5 / $10 / $50 এক চাপে সেট\n\n"
-        "✏️ <b>Custom amount লিখুন</b>\n"
-        "   └ $200, $1000 — যেকোনো পরিমাণ\n\n"
-        "🪙 <b>Non-USDT Notify টগল</b>\n"
-        "   └ ETH, BNB ইত্যাদি অন্য টোকেনের\n"
-        "      কোয়েস্টেও notify পেতে চালু করুন\n\n"
-        "📊 <b>বর্তমান সেটিংস দেখুন</b>\n"
-        "   └ আপনার active filter একনজরে\n\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"📌 <b>এখন চালু আছে:</b>\n"
+        "TaskOn এ নতুন কোয়েস্ট আসলে সাথে সাথে notify করে।\n\n"
+        "📌 <b>চালু আছে:</b>\n"
         f"   💵 সর্বনিম্ন: <code>${s['min_reward']} USDT</code>\n"
         f"   🪙 Non-USDT: {non_usdt}\n\n"
-        "👇 নিচের বাটন চাপুন সেটিংস করতে",
+        "বিস্তারিত জানতে /help লিখুন।",
         parse_mode="HTML",
         reply_markup=mini_app_button()
     )
@@ -136,9 +114,8 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     non_usdt = "✅ চালু" if s["non_usdt_notify"] else "❌ বন্ধ"
     await update.message.reply_text(
         "⚙️ <b>সেটিংস</b>\n\n"
-        f"💵 সর্বনিম্ন রিওয়ার্ড: <code>${s['min_reward']} USDT</code>\n"
-        f"🪙 Non-USDT Notify: {non_usdt}\n\n"
-        "👇 Mini App খুলে সেটিংস পরিবর্তন করুন",
+        f"💵 সর্বনিম্ন: <code>${s['min_reward']} USDT</code>\n"
+        f"🪙 Non-USDT: {non_usdt}",
         parse_mode="HTML",
         reply_markup=mini_app_button()
     )
@@ -149,47 +126,60 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update): return
     s = load_settings()
     non_usdt = "✅ চালু" if s["non_usdt_notify"] else "❌ বন্ধ"
-    filter_text = f"${s['min_reward']}+ {'সব টোকেন' if s['non_usdt_notify'] else 'শুধু USDT'}"
     await update.message.reply_text(
         "📊 <b>বর্তমান সেটিংস</b>\n\n"
-        f"💵 সর্বনিম্ন রিওয়ার্ড: <code>${s['min_reward']} USDT</code>\n"
-        f"🪙 Non-USDT Notify: {non_usdt}\n"
-        f"📌 ফিল্টার: <code>{filter_text}</code>",
+        f"💵 সর্বনিম্ন: <code>${s['min_reward']} USDT</code>\n"
+        f"🪙 Non-USDT: {non_usdt}\n"
+        f"📌 ফিল্টার: <code>${s['min_reward']}+ {'সব টোকেন' if s['non_usdt_notify'] else 'শুধু USDT'}</code>",
         parse_mode="HTML",
         reply_markup=mini_app_button()
     )
 
-# ─── Mini App থেকে data আসলে ─────────────────────────────────────────
+# ─── /help — বিস্তারিত এখানে ─────────────────────────────────────────
+
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not is_authorized(update): return
+    await update.message.reply_text(
+        "❓ <b>সাহায্য</b>\n\n"
+        "🎛️ <b>Mini App এ যা করতে পারবেন:</b>\n\n"
+        "💵 <b>সর্বনিম্ন রিওয়ার্ড সেট করুন</b>\n"
+        "   └ $5 সেট করলে $5 এর কম কোয়েস্টে notify আসবে না\n\n"
+        "➕ <b>+/- বাটন</b> — এক এক করে adjust করুন\n\n"
+        "⚡ <b>Quick preset</b> — $1/$5/$10/$50 এক চাপে সেট\n\n"
+        "✏️ <b>Custom amount</b> — $200, $1000 যেকোনো পরিমাণ\n\n"
+        "🪙 <b>Non-USDT Notify</b>\n"
+        "   └ ETH, BNB ইত্যাদি অন্য টোকেনের কোয়েস্টেও notify পেতে চালু করুন\n\n"
+        "📊 <b>Status</b> — বর্তমান active filter একনজরে দেখুন",
+        parse_mode="HTML",
+        reply_markup=mini_app_button()
+    )
+
+# ─── Mini App থেকে data ──────────────────────────────────────────────
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update): return
-
     if update.message.web_app_data:
         try:
             data = json.loads(update.message.web_app_data.data)
             s = load_settings()
-            if "min_reward"    in data: s["min_reward"]    = float(data["min_reward"])
+            if "min_reward"      in data: s["min_reward"]      = float(data["min_reward"])
             if "non_usdt_notify" in data: s["non_usdt_notify"] = bool(data["non_usdt_notify"])
             save_settings(s)
             non_usdt = "✅ চালু" if s["non_usdt_notify"] else "❌ বন্ধ"
             await update.message.reply_text(
                 "✅ <b>সেটিং সেভ হয়েছে!</b>\n\n"
-                f"💵 সর্বনিম্ন রিওয়ার্ড: <code>${s['min_reward']} USDT</code>\n"
-                f"🪙 Non-USDT Notify: {non_usdt}",
+                f"💵 সর্বনিম্ন: <code>${s['min_reward']} USDT</code>\n"
+                f"🪙 Non-USDT: {non_usdt}",
                 parse_mode="HTML",
                 reply_markup=mini_app_button()
             )
         except Exception as e:
             logging.error(f"Mini App data error: {e}")
 
-# ─── BotFather commands ───────────────────────────────────────────────
+# ─── BotFather — commands খালি ───────────────────────────────────────
 
 async def post_init(application: Application):
-    await application.bot.set_my_commands([
-        BotCommand("start",    "🤖 Bot শুরু করুন"),
-        BotCommand("settings", "⚙️ সেটিংস খুলুন"),
-        BotCommand("status",   "📊 বর্তমান সেটিংস"),
-    ])
+    await application.bot.set_my_commands([])
 
 # ─── Main ────────────────────────────────────────────────────────────
 
@@ -205,6 +195,7 @@ def main():
     app.add_handler(CommandHandler("start",    start_command))
     app.add_handler(CommandHandler("settings", settings_command))
     app.add_handler(CommandHandler("status",   status_command))
+    app.add_handler(CommandHandler("help",     help_command))
     app.add_handler(MessageHandler(
         filters.StatusUpdate.WEB_APP_DATA | (filters.TEXT & ~filters.COMMAND),
         message_handler
