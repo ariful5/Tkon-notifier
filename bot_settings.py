@@ -158,6 +158,34 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_authorized(update): return
+
+    # Mini App থেকে settings_update message আসলে
+    if update.message.text and '#settings_update' in update.message.text:
+        try:
+            lines = update.message.text.split('\n')
+            reward_line = [l for l in lines if 'সর্বনিম্ন' in l][0]
+            usdt_line   = [l for l in lines if 'Non-USDT' in l][0]
+
+            reward_val = float(reward_line.split('$')[1].split(' ')[0])
+            non_usdt_val = '✅' in usdt_line
+
+            s = load_settings()
+            s['min_reward']      = reward_val
+            s['non_usdt_notify'] = non_usdt_val
+            save_settings(s)
+
+            non_usdt_text = "✅ চালু" if non_usdt_val else "❌ বন্ধ"
+            await update.message.reply_text(
+                "✅ <b>Mini App থেকে সেভ হয়েছে!</b>\n\n"
+                f"💵 সর্বনিম্ন: <code>${reward_val} USDT</code>\n"
+                f"🪙 Non-USDT: {non_usdt_text}",
+                parse_mode="HTML",
+                reply_markup=mini_app_button()
+            )
+        except Exception as e:
+            logging.error(f"settings_update parse error: {e}")
+        return
+
     if update.message.web_app_data:
         try:
             data = json.loads(update.message.web_app_data.data)
@@ -216,4 +244,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+            
